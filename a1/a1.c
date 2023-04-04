@@ -10,6 +10,7 @@
 #include <time.h>
 #include <dirent.h>
 
+
 int endsWith(char *name, char *end) {
     int name_len = strlen(name);
     int end_len = strlen(end);
@@ -115,8 +116,67 @@ void list_recursive(char* dir_name,int haspermwrite, int find_name, char* name_e
     closedir(dir);
 }
 
-void parse(char* parse){
+
+void parse(char* path){
+    char* magic=(char*)malloc(2*sizeof(char));
+    char* nr_of_sections=(char*)malloc(sizeof(char));
+    unsigned char* version=(unsigned char*)malloc(4*sizeof(unsigned char));
+
+    int fd = open(path, O_RDONLY);
+    if(fd==-1){
+        printf("Failed to open file");
+    }
+    lseek(fd, 0, SEEK_SET);
+    read(fd,magic,2);
+
+    if(strcmp(magic,"y5")!=0){
+        printf("ERROR\nwrong magic");
+        return;
+    }
+
+    char* header_size=(char*)malloc(2*sizeof(char));
+    read(fd,header_size,2);
+    //lseek(fd,4,SEEK_SET);
+    read(fd,version,4);
+    unsigned int value=version[0] | version[1] << 8 | version[2] << 16 | version[3] << 24;
+
+    if(!(value>=107 && value <=221)){
+        printf("ERROR\nwrong version");
+        return;
+    }
+
+    //lseek(fd,8,SEEK_SET);
+    read(fd,nr_of_sections,1);
+    int value_sections=nr_of_sections[0] | nr_of_sections[1] << 8 | nr_of_sections[2] << 16 | nr_of_sections[3] << 24;
+    if(!(value_sections>=8 && value_sections <=14)){
+        printf("ERROR\nwrong sect_nr");
+    }
+    int count=0;
     
+    while(count!=value_sections){
+        lseek(fd,6,SEEK_CUR);
+        unsigned char* type=(unsigned char*)malloc(4*sizeof(unsigned char));
+        read(fd,type,4);
+        int value_type=type[0] | type[1] << 8 | type[2] << 16 | type[3] << 24;
+        if(value_type!=89 && value_type!=86 && value_type!=18 && value_type!=71 && value_type!=46){
+            printf("ERROR\nwrong sect_types");
+            return;
+        }
+        lseek(fd,8,SEEK_CUR);
+        count++;
+    }
+
+    printf("SUCCES");
+    printf("version=%d");
+
+
+    
+    free(magic);
+    free(version);
+    free(header_size);
+
+    close(fd);
+
 }
 
 
@@ -182,7 +242,7 @@ int main(int argc, char **argv){
                 }
 
         }
-        if(strcmp(argv[1], "list") == 0){
+        if(strcmp(argv[1], "parse") == 0){
             char* path=strchr(argv[2],'=');
             memmove(path, path + 1, strlen(path));
             parse(path);
