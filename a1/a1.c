@@ -121,59 +121,118 @@ void parse(char* path){
     char* magic=(char*)malloc(2*sizeof(char));
     char* nr_of_sections=(char*)malloc(sizeof(char));
     unsigned char* version=(unsigned char*)malloc(4*sizeof(unsigned char));
-
+    char* header_size=(char*)malloc(2*sizeof(char));
     int fd = open(path, O_RDONLY);
+
     if(fd==-1){
         printf("Failed to open file");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return;
     }
     lseek(fd, 0, SEEK_SET);
     read(fd,magic,2);
 
     if(strcmp(magic,"y5")!=0){
         printf("ERROR\nwrong magic");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
         return;
     }
 
-    char* header_size=(char*)malloc(2*sizeof(char));
+    
     read(fd,header_size,2);
     //lseek(fd,4,SEEK_SET);
     read(fd,version,4);
-    unsigned int value=version[0] | version[1] << 8 | version[2] << 16 | version[3] << 24;
+    unsigned int value_version=version[0] | version[1] << 8 | version[2] << 16 | version[3] << 24;
 
-    if(!(value>=107 && value <=221)){
+    if(!(value_version>=107 && value_version <=221)){
         printf("ERROR\nwrong version");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
         return;
     }
 
     //lseek(fd,8,SEEK_SET);
     read(fd,nr_of_sections,1);
-    int value_sections=nr_of_sections[0] | nr_of_sections[1] << 8 | nr_of_sections[2] << 16 | nr_of_sections[3] << 24;
-    if(!(value_sections>=8 && value_sections <=14)){
+    unsigned int value=nr_of_sections[0] | nr_of_sections[1] << 8 | nr_of_sections[2] << 16 | nr_of_sections[3] << 24;
+    if(!(value>=8 && value <=14)){
         printf("ERROR\nwrong sect_nr");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return;
     }
     int count=0;
     
-    while(count!=value_sections){
+    while(count!=value){
         lseek(fd,6,SEEK_CUR);
+
         unsigned char* type=(unsigned char*)malloc(4*sizeof(unsigned char));
+
         read(fd,type,4);
-        int value_type=type[0] | type[1] << 8 | type[2] << 16 | type[3] << 24;
+
+        unsigned int value_type=type[0] | type[1] << 8 | type[2] << 16 | type[3] << 24;
+        
+
         if(value_type!=89 && value_type!=86 && value_type!=18 && value_type!=71 && value_type!=46){
             printf("ERROR\nwrong sect_types");
+            free(magic);
+            free(version);
+            free(header_size);
+            free(nr_of_sections);
+            free(type);
             return;
         }
         lseek(fd,8,SEEK_CUR);
+        free(type);
         count++;
     }
+    lseek(fd,0,SEEK_SET);
+    lseek(fd,9,SEEK_CUR);
 
-    printf("SUCCES");
-    printf("version=%d");
+    printf("SUCCESS\n");
+    printf("version=%d\n",value_version);    //printf("nr_sections=%d\n",value_sections);
+    printf("nr_sections=%d\n",value);
+    
+    count=0;
+    while(count!=value){
+        unsigned char* name=(unsigned char*)malloc(6*sizeof(char));
+        unsigned char* s_type=(unsigned char*)malloc(4*sizeof(char));
+        unsigned char* s_size=(unsigned char*)malloc(4*sizeof(char));
+        printf("section%d: ", count+1);
+        read(fd,name,6);
+        printf("%s ", name);
 
+        read(fd,s_type,4);
+        unsigned int value_type=s_type[0] | s_type[1] << 8 | s_type[2] << 16 | s_type[3] << 24;
+        printf("%d ", value_type);
 
+        lseek(fd,4,SEEK_CUR);
+
+        read(fd,s_size,4);
+        unsigned int value_size=s_size[0] | s_size[1] << 8 | s_size[2] << 16 | s_size[3] << 24;
+        printf("%d \n",value_size);
+        
+        free(name);
+        free(s_type);
+        
+        free(s_size);
+
+        count++;
+    }
     
     free(magic);
     free(version);
     free(header_size);
+    free(nr_of_sections);
 
     close(fd);
 
