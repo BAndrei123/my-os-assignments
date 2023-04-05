@@ -117,6 +117,7 @@ void list_recursive(char* dir_name,int haspermwrite, int find_name, char* name_e
 }
 
 
+
 void parse(char* path){
     char* magic=(char*)malloc(2*sizeof(char));
     char* nr_of_sections=(char*)malloc(sizeof(char));
@@ -238,6 +239,171 @@ void parse(char* path){
 
 }
 
+unsigned int  parse2(char* path, int sect_nr, int line_nr){
+    char* magic=(char*)malloc(2*sizeof(char));
+    char* nr_of_sections=(char*)malloc(sizeof(char));
+    unsigned char* version=(unsigned char*)malloc(4*sizeof(unsigned char));
+    char* header_size=(char*)malloc(2*sizeof(char));
+    int fd = open(path, O_RDONLY);
+    
+    
+
+    if(fd==-1){
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return 1;
+    }
+    lseek(fd, 0, SEEK_SET);
+    read(fd,magic,2);
+
+    if(strcmp(magic,"y5")!=0){
+        printf("ERROR\ninvalid file");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return 1;
+    }
+
+    
+    read(fd,header_size,2);
+    
+    read(fd,version,4);
+    unsigned int value_version=version[0] | version[1] << 8 | version[2] << 16 | version[3] << 24;
+
+    if(!(value_version>=107 && value_version <=221)){
+        printf("ERROR\ninvalid file");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return 1;
+    }
+
+    //lseek(fd,8,SEEK_SET);
+    read(fd,nr_of_sections,1);
+    unsigned int value=nr_of_sections[0] | nr_of_sections[1] << 8 | nr_of_sections[2] << 16 | nr_of_sections[3] << 24;
+    if(!(value>=8 && value <=14)){
+        printf("ERROR\ninvalid file");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        return 1;
+    }
+    int count=0;
+
+    if(sect_nr > value){
+        printf("ERROR\nsection");
+        return 1;
+    }
+
+    while(count!=value){
+        lseek(fd,6,SEEK_CUR);
+
+        unsigned char* type=(unsigned char*)malloc(4*sizeof(unsigned char));
+
+        read(fd,type,4);
+
+        unsigned int value_type=type[0] | type[1] << 8 | type[2] << 16 | type[3] << 24;
+        
+
+        if(value_type!=89 && value_type!=86 && value_type!=18 && value_type!=71 && value_type!=46){
+            
+            free(magic);
+            free(version);
+            free(header_size);
+            free(nr_of_sections);
+            free(type);
+            return 1;
+        }
+        
+            lseek(fd,4,SEEK_CUR);
+        
+        unsigned char* size=(unsigned char*)malloc(4*sizeof(unsigned char));
+        read(fd,size,4);
+        unsigned int value_size=size[0] | size[1] << 8 | size[2] << 16 | size[3] << 24;
+
+        if(count+1 == sect_nr && line_nr > value_size ){
+            printf("%d\n",value_size);
+            printf("ERROR\nline");
+            return 1;
+
+        }
+        free(size);
+        free(type);
+        count++;
+    }
+
+    
+    free(magic);
+    free(version);
+    free(header_size);
+    free(nr_of_sections);
+    close(fd);
+    lseek(fd,0,SEEK_SET);
+    return value;
+}
+
+void extract(char* path, int sect_nr, int line_nr){
+    int fd=open(path, O_RDONLY);
+
+    unsigned nr_of_sections=parse2(path,sect_nr,line_nr);
+    if(nr_of_sections==1)
+    {
+        return;
+    }
+    printf("SUCCESS\n");
+    lseek(fd,0,SEEK_SET);
+    lseek(fd,9,SEEK_CUR);
+    unsigned int value_offset;
+    unsigned int value_size;
+    int count=0;
+    while(count!= nr_of_sections){
+
+    if(count+1==sect_nr)
+    {
+    lseek(fd,10,SEEK_CUR);
+    unsigned char* offset=(unsigned char*)malloc(4*sizeof(unsigned char));
+    read(fd,offset,4);
+    value_offset=offset[0] | offset[1] << 8 | offset[2] << 16 | offset[3] << 24;
+    free(offset);
+    
+    unsigned char* size=(unsigned char*)malloc(4*sizeof(unsigned char));
+    read(fd,size,4);
+    value_size=size[0] | size[1] << 8 | size[2] << 16 | size[3] << 24;
+    free(size);
+    break;
+    }
+
+        lseek(fd,18,SEEK_CUR);
+    
+    count++;
+    }
+    
+    lseek(fd,0,SEEK_SET);
+    lseek(fd,value_offset,SEEK_CUR);
+    
+    
+    int current_line=1;
+     char* buffer=(char*)malloc(value_size+1 *sizeof(char));
+    read(fd,buffer,value_size);
+     char* token;
+    token = strtok(buffer,"\n");
+    while(token != NULL){
+        if(current_line == line_nr){
+            printf("%s\n",token);
+            break;
+        }
+        current_line++;
+        token = strtok(NULL, "\n");
+    }
+    
+    close(fd);
+    free(buffer);
+}
 
 int main(int argc, char **argv){
     if(argc >= 2){
@@ -305,6 +471,21 @@ int main(int argc, char **argv){
             char* path=strchr(argv[2],'=');
             memmove(path, path + 1, strlen(path));
             parse(path);
+        }
+
+        if(strcmp(argv[1],"extract") ==0){
+            char* path=strchr(argv[2],'=');
+            memmove(path, path + 1, strlen(path));
+            
+            char* section=strchr(argv[3],'=');
+            memmove(section, section + 1, strlen(section));
+            int sect_nr=atoi(section);
+
+            char* line=strchr(argv[4],'=');
+            memmove(line, line + 1, strlen(line));
+            int line_nr=atoi(line);
+            extract(path,sect_nr,line_nr);
+
         }
 
 
