@@ -349,7 +349,7 @@ unsigned int  parse2(char* path, int sect_nr, int line_nr){
 
 void extract(char* path, int sect_nr, int line_nr){
     int fd=open(path, O_RDONLY);
-
+    
     unsigned nr_of_sections=parse2(path,sect_nr,line_nr);
     if(nr_of_sections==1)
     {
@@ -403,6 +403,170 @@ void extract(char* path, int sect_nr, int line_nr){
     
     close(fd);
     free(buffer);
+}
+unsigned int  parse3(char* path){
+    char* magic=(char*)calloc(3,sizeof(char));
+    char* nr_of_sections=(char*)calloc(2,sizeof(char));
+    unsigned char* version=(unsigned char*)calloc(5,sizeof(unsigned char));
+    char* header_size=(char*)calloc(3,sizeof(char));
+    int fd = open(path, O_RDONLY);
+    
+   // printf("%s\n",path);
+
+    if(fd==-1){
+      //  printf("1");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        close(fd);
+        return 1;
+    }
+    lseek(fd, 0, SEEK_SET);
+    read(fd,magic,2);
+
+    if(strcmp(magic,"y5")!=0){
+        
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        lseek(fd,0,SEEK_SET);
+        close(fd);
+        return 1;
+    }
+
+    
+    read(fd,header_size,2);
+    
+    read(fd,version,4);
+    unsigned int value_version=version[0] | version[1] << 8 | version[2] << 16 | version[3] << 24;
+
+    if(!(value_version>=107 && value_version <=221)){
+        //printf("3");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        close(fd);
+        return 1;
+    }
+
+    //lseek(fd,8,SEEK_SET);
+    read(fd,nr_of_sections,1);
+    unsigned int value=nr_of_sections[0] | nr_of_sections[1] << 8 | nr_of_sections[2] << 16 | nr_of_sections[3] << 24;
+    if(!(value>=8 && value <=14)){
+       //printf("4");
+        free(magic);
+        free(version);
+        free(header_size);
+        free(nr_of_sections);
+        close(fd);
+        return 1;
+    }
+    
+
+    int count=0;
+
+    int valid=0;
+   while(count!=value){
+        lseek(fd,6,SEEK_CUR);
+
+        unsigned char* type=(unsigned char*)calloc(5,sizeof(unsigned char));
+
+        read(fd,type,4);
+
+        unsigned int value_type=type[0] | type[1] << 8 | type[2] << 16 | type[3] << 24;
+        
+
+        if(value_type!=89 && value_type!=86 && value_type!=18 && value_type!=71 && value_type!=46){
+         //   printf("5");
+            free(magic);
+            free(version);
+            free(header_size);
+            free(nr_of_sections);
+            free(type);
+            close(fd);
+            return 1;
+        }
+
+        if(value_type == 89){
+            
+            valid++;
+        }
+        lseek(fd,8,SEEK_CUR);
+        free(type);
+        count++;
+    }
+
+    
+    free(magic);
+    free(version);
+    free(header_size);
+    free(nr_of_sections);
+    
+    
+    if(valid >= 2)
+    {
+        
+        return 0;
+    }
+    return 1;
+}
+void findall(char* dir_name, int SUCCESS){
+
+
+    struct stat sb;
+    struct stat sb2;
+    struct stat sb3;
+    struct dirent* d;
+
+    char* path=(char*)malloc(1024*sizeof(char));
+    
+        if(stat(dir_name,&sb) || !S_ISDIR(sb.st_mode)){
+            printf("ERROR\ninvalid directory path");
+             return;
+            }
+
+    DIR* dir=opendir(dir_name);
+    if(dir==NULL){
+        printf("ERROR\ninvalid directory path");
+             return;
+    }
+    if(SUCCESS==0)
+    {
+        printf("SUCCESS\n");
+        SUCCESS=1;
+    }
+    
+    while((d=readdir(dir))!=NULL){
+         if(strcmp(d->d_name,".")==0 || strcmp(d->d_name,"..")==0)
+        continue;
+        snprintf(path,1024,"%s/%s",dir_name,d->d_name);
+         
+        if(lstat(path,&sb3)==0){
+            if(S_ISREG(sb3.st_mode)){
+                if(parse3(path)==0)
+                printf("%s\n",path);
+            }
+        }
+
+
+         if(lstat(path,&sb2)==0){
+            if(S_ISDIR(sb2.st_mode)){
+                
+                findall(path,SUCCESS);
+            }
+        }
+       
+        
+    
+    }
+    
+
+    free(path);
+    closedir(dir);
+
 }
 
 int main(int argc, char **argv){
@@ -488,7 +652,17 @@ int main(int argc, char **argv){
 
         }
 
-
+        if(strcmp(argv[1],"findall") == 0){
+            char* path=strchr(argv[2],'=');
+            memmove(path, path + 1, strlen(path));
+            int SUCCESS=0;
+            // if(parse3("test_root/df9L5imYBU/W6g8gKBj/IKF7d/21pI/F8mhGsmT8.lXe")==0)
+            //    printf("1");
+            // if(parse3("test_root/df9L5imYBU/W6g8gKBj/UNErv0oMb/hEHX/UIoe4Y/MgB9pH0/hDSucDvz6g/OFoty/NlxbG.pRV")==0)
+            //     printf("1");
+            findall(path,SUCCESS);
+           
+        }
 
     
     }
