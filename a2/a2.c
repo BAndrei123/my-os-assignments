@@ -15,54 +15,17 @@ void *thread_six(void* arg){
     info(BEGIN,6,thread_num);
 
     if(thread_num==2){
-        pthread_mutex_lock(&lock);
-        while(count<4){
-            pthread_cond_wait(&cond,&lock);
-        }
-        pthread_mutex_unlock(&lock);
-        // pthread_barrier_wait(&barrier);
+        
+        info(BEGIN,6,5);
+        info(END,6,5);
+       
     }
     info(END, 6, thread_num);
-    pthread_mutex_lock(&lock);
-    count++;
-    pthread_cond_signal(&cond);
-    pthread_mutex_unlock(&lock);
-    return NULL;
-}
-
-void* thread_func(void* arg) {
-    int thread_num = *(int*)arg;
-    info(BEGIN, 6, thread_num);
-
-    if (thread_num == 2) {
-        // wait for thread T6.5 to start
-        pthread_mutex_lock(&lock);
-        while (count < 4) {
-            pthread_cond_wait(&cond, &lock);
-        }
-        pthread_mutex_unlock(&lock);
-    }
-
-    // simulate some work
-    // int i;
-    // for (i = 0; i < 100000000; i++) {}
-
-    // wait at the barrier before terminating
-    pthread_barrier_wait(&barrier);
-
-    info(END, 6, thread_num);
-
-    // signal that this thread has ended
-    pthread_mutex_lock(&lock);
-    count++;
-
-        // if all threads have ended, signal the main thread
-        pthread_cond_signal(&cond);
     
-    pthread_mutex_unlock(&lock);
-
     return NULL;
 }
+
+
 
 
 
@@ -113,21 +76,19 @@ int main(){
     pid6=fork();
     if(pid6==0){
         info(BEGIN,6,0);
-         int i, thread_nums[5] = { 1, 2, 3, 4,5};
+         int i, thread_nums[5] = { 1, 2, 3, 4};
         pthread_t threads[5];
-        pthread_mutex_init(&lock, NULL);
-        pthread_cond_init(&cond, NULL);
-       pthread_barrier_init(&barrier, NULL, 5);
+       
+       
 
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
         pthread_create(&threads[i], NULL, thread_six, &thread_nums[i]);
          }
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
         pthread_join(threads[i], NULL);
         }
-        pthread_barrier_destroy(&barrier);
-         pthread_cond_destroy(&cond);
-         pthread_mutex_destroy(&lock);
+       
+       
         info(END,6,0);
         return 0;
     }
