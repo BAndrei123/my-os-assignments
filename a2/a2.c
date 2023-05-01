@@ -13,7 +13,6 @@ int count=0;
 void *thread_six(void* arg){
     int thread_num=*(int*)arg;
     info(BEGIN,6,thread_num);
-
     if(thread_num==2){
         
         info(BEGIN,6,5);
@@ -21,11 +20,25 @@ void *thread_six(void* arg){
        
     }
     info(END, 6, thread_num);
-    
     return NULL;
 }
 
+void *thread_seven(void* arg){
+    int thread_num=*(int*)arg;
+    info(BEGIN,7,thread_num);
+   
+    info(END, 7, thread_num);
+    return NULL;
+}
 
+void *thread_three(void* arg){
+
+    int thread_num=*(int*)arg;
+    info(BEGIN,3,thread_num);
+   
+    info(END, 3, thread_num);
+    return NULL;
+}
 
 
 
@@ -45,6 +58,20 @@ int main(){
     pid3=fork();
     if(pid3==0){
         info(BEGIN,3,0);
+
+         int i, thread_nums[5] = { 1, 2, 3, 4, 5};
+        pthread_t threads[5];
+       
+       
+
+        for (i = 0; i < 5; i++) {
+        pthread_create(&threads[i], NULL, thread_three, &thread_nums[i]);
+         }
+        for (i = 0; i < 5; i++) {
+        pthread_join(threads[i], NULL);
+        }
+       
+
         pid4=fork();
         if(pid4==0){
             info(BEGIN,4,0);
@@ -55,7 +82,21 @@ int main(){
                 info(BEGIN,5,0);
                 pid7=fork();
                 if(pid7==0){
+
                     info(BEGIN,7,0);
+
+                    pthread_t threads[47];
+                    int thread_nums[47];
+                    for(int i=0; i<47; i++){
+                        thread_nums[i]=i+1;
+                    }
+                    for(int i=0; i<47; i++){
+                        pthread_create(&threads[i],NULL,thread_seven,&thread_nums[i]);
+                    }
+                    for(int i=0; i<47; i++){
+                        pthread_join(threads[i], NULL);
+                    }
+
                     info(END,7,0);
                     return 0;
                 }
