@@ -3,16 +3,20 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "a2_helper.h"
-
+#define MAX_RUNNING 4
 pthread_mutex_t lock;
 pthread_cond_t cond;
-pthread_barrier_t barrier; 
+int th_running;
 int count=0;
-
+sem_t sem;
+                 // count of threads currently running
+int num_ended = 0;
 void *thread_six(void* arg){
     int thread_num=*(int*)arg;
     info(BEGIN,6,thread_num);
+    
     if(thread_num==2){
         
         info(BEGIN,6,5);
@@ -20,13 +24,76 @@ void *thread_six(void* arg){
        
     }
     info(END, 6, thread_num);
+    
     return NULL;
 }
 
 void *thread_seven(void* arg){
     int thread_num=*(int*)arg;
     info(BEGIN,7,thread_num);
+     
+    
+
+    if(thread_num==11){
+       
+        info(BEGIN,7,12);
+        info(BEGIN,7,13);
+        info(BEGIN,7,14);
+        info(END,7,11);
+        info(END,7,12);
+        info(END,7,13);
+        info(END,7,14);
+        
+        
+    }
+    
+    else
+    {   
+        info(END, 7, thread_num);
+    }
+
    
+    return NULL;
+}
+void* thread_func(void* arg) {
+    int thread_num = *(int*)arg;
+    info(BEGIN, 7, thread_num);
+
+    sem_wait(&sem);           // wait for semaphore to be available
+
+    // simulate some work
+    int i;
+    for (i = 0; i < 100000000; i++) {}
+
+    pthread_mutex_lock(&lock);
+    count++;                  // increment count of running threads
+    pthread_mutex_unlock(&lock);
+
+    // check if Thread T7.11 can end
+    if (thread_num == 11) {
+        pthread_mutex_lock(&lock);
+        while (count != MAX_RUNNING) {
+            pthread_cond_wait(&cond, &lock);
+        }
+        pthread_mutex_unlock(&lock);
+    }
+
+    // simulate some more work
+    
+
+    pthread_mutex_lock(&lock);
+    count--;                  // decrement count of running threads
+    num_ended++;              // increment count of ended threads
+
+    // signal T7.11 if there are 4 threads running
+    if (thread_num != 11 && count == MAX_RUNNING) {
+        pthread_cond_signal(&cond);
+    }
+
+    pthread_mutex_unlock(&lock);
+
+    sem_post(&sem);           // release semaphore
+
     info(END, 7, thread_num);
     return NULL;
 }
@@ -62,7 +129,7 @@ int main(){
          int i, thread_nums[5] = { 1, 2, 3, 4, 5};
         pthread_t threads[5];
        
-       
+       sem_init(&sem, 0, 4); 
 
         for (i = 0; i < 5; i++) {
         pthread_create(&threads[i], NULL, thread_three, &thread_nums[i]);
@@ -70,7 +137,7 @@ int main(){
         for (i = 0; i < 5; i++) {
         pthread_join(threads[i], NULL);
         }
-       
+       sem_destroy(&sem);
 
         pid4=fork();
         if(pid4==0){
@@ -88,15 +155,34 @@ int main(){
                     pthread_t threads[47];
                     int thread_nums[47];
                     for(int i=0; i<47; i++){
+                        int a=i+1;
+                        //printf("%d\n",a);
                         thread_nums[i]=i+1;
+                        if(a==11){
+                            i+=3;
+                        }
                     }
+                    pthread_mutex_init(&lock, NULL);
+                    pthread_cond_init(&cond, NULL);
+                    sem_init(&sem, 0, 3);
                     for(int i=0; i<47; i++){
-                        pthread_create(&threads[i],NULL,thread_seven,&thread_nums[i]);
-                    }
-                    for(int i=0; i<47; i++){
-                        pthread_join(threads[i], NULL);
-                    }
+                        int a=i+1;
 
+                        pthread_create(&threads[i],NULL,thread_seven,&thread_nums[i]);
+                        if(a==11){
+                            i+=3;
+                        }
+                    }
+                    for(int i=0; i<47; i++){
+                        int a=i+1;
+                        pthread_join(threads[i], NULL);
+                        if(a==11){
+                            i+=3;
+                        }
+                    }
+                    sem_destroy(&sem);
+                    pthread_cond_destroy(&cond);
+                    pthread_mutex_destroy(&lock);
                     info(END,7,0);
                     return 0;
                 }
