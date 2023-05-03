@@ -11,6 +11,7 @@ pthread_cond_t cond;
 int th_running;
 int count=0;
 sem_t sem;
+int ok=0;
                  // count of threads currently running
 int num_ended = 0;
 void *thread_six(void* arg){
@@ -102,8 +103,13 @@ void *thread_three(void* arg){
 
     int thread_num=*(int*)arg;
     info(BEGIN,3,thread_num);
-   
     info(END, 3, thread_num);
+    if(thread_num==1){
+    info(BEGIN,6,1);
+    info(END,6,1);
+    info(BEGIN,3,4);
+    info(END,3,4);
+    }
     return NULL;
 }
 
@@ -126,15 +132,15 @@ int main(){
     if(pid3==0){
         info(BEGIN,3,0);
 
-         int i, thread_nums[5] = { 1, 2, 3, 4, 5};
+         int i, thread_nums[5] = { 1, 2, 3 , 5};
         pthread_t threads[5];
        
        sem_init(&sem, 0, 4); 
 
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
         pthread_create(&threads[i], NULL, thread_three, &thread_nums[i]);
          }
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
         pthread_join(threads[i], NULL);
         }
        sem_destroy(&sem);
@@ -203,15 +209,15 @@ int main(){
     pid6=fork();
     if(pid6==0){
         info(BEGIN,6,0);
-         int i, thread_nums[5] = { 1, 2, 3, 4};
+         int i, thread_nums[5] = { 2, 3, 4};
         pthread_t threads[5];
        
        
 
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 3; i++) {
         pthread_create(&threads[i], NULL, thread_six, &thread_nums[i]);
          }
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 3; i++) {
         pthread_join(threads[i], NULL);
         }
        
