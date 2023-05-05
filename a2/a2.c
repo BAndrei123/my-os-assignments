@@ -60,7 +60,7 @@ void *thread_six(void* arg){
 void *thread_seven(void *arg) {
     int thread_num = *(int*)arg;
     pthread_mutex_lock(&mutex5);
-    while(count>=4){
+    while(count==4){
         pthread_cond_wait(&cond2,&mutex5);
     }
     pthread_mutex_unlock(&mutex5);
@@ -68,18 +68,24 @@ void *thread_seven(void *arg) {
     pthread_mutex_lock(&mutex6);
     count++;
     
-    printf("%d\n",count);
+   // printf("%d\n",count);
     pthread_mutex_unlock(&mutex6);
+    pthread_mutex_lock(&mutex7);
+    if(count==4 && thread_num==11){
+        sem_post(sem);
+    }
+    pthread_mutex_unlock(&mutex7);
     info(BEGIN, 7, thread_num);
     
-    
-    if(thread_num==11 && count==4)
+    pthread_mutex_lock(&mutex8);
+    if(thread_num==11 && count!=4)
     {
-        info(END,7,11);
+        sem_wait(sem);
     }
-    if(thread_num!=11){
+    pthread_mutex_unlock(&mutex8);
+    //if(thread_num!=11){
     info(END, 7, thread_num);
-    }
+    //}
     pthread_mutex_lock(&mutex5);
     count--;
     //printf("%d\n",count);
