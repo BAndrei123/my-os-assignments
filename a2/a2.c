@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 600
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,6 +8,7 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include "a2_helper.h"
+
 
 #define MAX_RUNNING 4
 pthread_mutex_t lock;
@@ -23,6 +25,7 @@ sem_t sem_p7;
 
 pthread_cond_t cond;
 pthread_cond_t cond2=PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond3=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex2=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex3=PTHREAD_MUTEX_INITIALIZER;
@@ -32,6 +35,11 @@ pthread_mutex_t mutex6=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex7=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex8=PTHREAD_MUTEX_INITIALIZER;
 
+pthread_barrier_t barrier; 
+
+sem_t sem1;
+sem_t sem2;
+int t11=0;
 int num_running_threads = 0;
                  // count of threads currently running
 int num_ended = 0;
@@ -57,8 +65,25 @@ void *thread_six(void* arg){
     return NULL;
 }
 
+
+
+
 void *thread_seven(void *arg) {
     int thread_num = *(int*)arg;
+    pthread_mutex_lock(&mutex8);
+    if(ok==0){
+        info(BEGIN,7,11);
+        info(BEGIN,7,12);
+        info(BEGIN,7,13);
+        info(BEGIN,7,14);
+        info(END,7,11);
+        info(END,7,12);
+        info(END,7,13);
+        info(END,7,14);
+        ok=1;
+    }
+    pthread_mutex_unlock(&mutex8);
+    //if there are 4 threads running wait until there are less then 4
     pthread_mutex_lock(&mutex5);
     while(count==4){
         pthread_cond_wait(&cond2,&mutex5);
@@ -68,28 +93,37 @@ void *thread_seven(void *arg) {
     pthread_mutex_lock(&mutex6);
     count++;
     
-   // printf("%d\n",count);
     pthread_mutex_unlock(&mutex6);
-    pthread_mutex_lock(&mutex7);
+    //if thread 11 is running and 4 threads are running including 11 then sem_post
+   pthread_mutex_lock(&mutex7);
     if(count==4 && thread_num==11){
         sem_post(sem);
     }
+    
     pthread_mutex_unlock(&mutex7);
     info(BEGIN, 7, thread_num);
+   
     
-    pthread_mutex_lock(&mutex8);
+    //else wait
+    // pthread_mutex_lock(&mutex8);
     if(thread_num==11 && count!=4)
     {
         sem_wait(sem);
     }
     pthread_mutex_unlock(&mutex8);
-    //if(thread_num!=11){
+
     info(END, 7, thread_num);
+    if(thread_num==11)
+    {
+        t11=0;
+    }
     //}
     pthread_mutex_lock(&mutex5);
     count--;
     //printf("%d\n",count);
-    if(count<4){
+
+    // if there are less than 4 then signal 
+    if( count<4){
         pthread_cond_signal(&cond2);       
     }
     pthread_mutex_unlock(&mutex5);
@@ -120,10 +154,14 @@ void *thread_three(void* arg){
 
     int main(){
         init();
-
+       
+        
+        
         t_3_1 = sem_open("/proc3", O_CREAT, 0600, 0);
         t_3_4 = sem_open("/proc4", O_CREAT, 0600, 0); 
         sem=sem_open("/pro",O_CREAT, 0600, 0);
+        pthread_barrier_init(&barrier, NULL, 4);
+        
         // sem_init(&t_3_1,0,0);
         // sem_init(&t_3_4,0,0);
         pid_t pid2,pid3,pid4,pid5,pid6,pid7;
@@ -184,19 +222,19 @@ void *thread_three(void* arg){
                         pthread_mutex_init(&mutex8, NULL);
 
                         for(int i=0; i<47; i++){
-                        //int a=i+1;
+                        int a=i+1;
 
                             pthread_create(&threads[i],NULL,thread_seven,&thread_nums[i]);
-                            // if(a==11){
-                            //     i+=3;
-                            // }
+                            if(a==10){
+                                i+=4;
+                            }
                         }
                         for(int i=0; i<47; i++){
-                        // int a=i+1;
+                         int a=i+1;
                             pthread_join(threads[i], NULL);
-                            // if(a==11){
-                            //     i+=3;
-                            // }
+                            if(a==10){
+                                i+=4;
+                            }
                         }
                         sem_destroy(&sem_p7);
                         sem_destroy(&sem_t711);
@@ -206,6 +244,7 @@ void *thread_three(void* arg){
                         pthread_mutex_destroy(&mutex7);
                         pthread_mutex_destroy(&mutex8);
                         pthread_cond_destroy(&cond2);
+                        pthread_cond_destroy(&cond3);
                         info(END,7,0);
                         return 0;
                     }
@@ -259,6 +298,8 @@ void *thread_three(void* arg){
         sem_close(t_3_1);
         sem_close(t_3_4);
         sem_close(sem);
+        pthread_barrier_destroy(&barrier);
+      
         info(END, 1, 0);
         return 0;
     }
